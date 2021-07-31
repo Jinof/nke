@@ -1,9 +1,10 @@
 extern crate clap;
 use clap::{App, Arg};
 use std::fs::OpenOptions;
-use std::io::prelude::*;
+use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::str;
+use openssl::ssl::{SslMethod, SslConnector};
 
 fn main() {
     let matches = App::new("NKE")
@@ -26,12 +27,6 @@ fn main() {
         )
         .get_matches();
 
-    println!(
-        "{} {}",
-        matches.is_present("welcome"),
-        matches.is_present("meta")
-    );
-
     if matches.is_present("welcome") {
         let mut file = OpenOptions::new()
             .write(true)
@@ -44,23 +39,31 @@ fn main() {
         file.sync_all().unwrap();
     };
 
-    // TODO: Add ssl connection before GET request.
     if matches.is_present("meta") {
-        let mut stream =
-            TcpStream::connect("www.taobao.com:443").expect("unbale to connect to www.taobao.com");
+        let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
+        let stream =
+            TcpStream::connect("www.taobao.com:443").unwrap();
+        
+        let mut stream = connector.connect("www.taobao.com", stream).unwrap();
 
-        let mut buf = [0; 128];
+        let mut buf = [0; 1024];
+        // 注意此处的多行 string 语法, rust 中多行 string 要在行末尾加 \
+        // HTTP 报文以 \r\n 作为分隔符, 以 \r\n\r\n 作为结束符, 两行报文间
+        // 除分隔符外不能有其他字符(比如空格), 所以 rust 换行符 \ 应紧贴 \r\n.
         stream
-            .write(
-                "
-            GET /help/getip.php HTTP/2
-            Host: www.taobao.com
-            user-agent: nke/1.0
-            "
-                .as_bytes(),
+            .ssl_write(
+                b"GET /help/getip.php HTTP/1.1\r\n\
+                Host: www.taobao.com\r\n\
+                user-agent: nke/1.0\r\n\
+                accept: */*\r\n\r\n"
             )
-            .expect("write error");
-        stream.read(&mut buf).expect("read error");
-        println!("{}", str::from_utf8(&buf).unwrap());
+            .unwrap();
+        stream.ssl_read(&mut buf).unwrap();
+        let resp: Vec<&str> = str::from_utf8(&buf).unwrap().split(" ").collect();
+        let resp_body = resp.last().unwrap();
+        let resp_body: Vec<&str> = resp_body.split("\"").collect();
+        let ip = resp_body.get(1).unwrap();
+        
+        println!("external ip is: {}", ip);
     }
 }
