@@ -1,10 +1,10 @@
 extern crate clap;
 use clap::{App, Arg};
+use openssl::ssl::{SslConnector, SslMethod};
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::str;
-use openssl::ssl::{SslMethod, SslConnector};
 
 fn main() {
     let matches = App::new("NKE")
@@ -41,9 +41,8 @@ fn main() {
 
     if matches.is_present("ip") {
         let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
-        let stream =
-            TcpStream::connect("www.taobao.com:443").unwrap();
-        
+        let stream = TcpStream::connect("www.taobao.com:443").unwrap();
+
         let mut stream = connector.connect("www.taobao.com", stream).unwrap();
 
         let mut buf = [0; 1024];
@@ -55,7 +54,7 @@ fn main() {
                 b"GET /help/getip.php HTTP/1.1\r\n\
                 Host: www.taobao.com\r\n\
                 user-agent: nke/1.0\r\n\
-                accept: */*\r\n\r\n"
+                accept: */*\r\n\r\n",
             )
             .unwrap();
         stream.ssl_read(&mut buf).unwrap();
@@ -63,7 +62,7 @@ fn main() {
         let resp_body = resp.last().unwrap();
         let resp_body: Vec<&str> = resp_body.split("\"").collect();
         let ip = resp_body.get(1).unwrap();
-        
+
         println!("external ip is: {}", ip);
     }
 }
