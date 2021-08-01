@@ -19,9 +19,9 @@ fn main() {
             ),
         )
         .subcommand(
-            App::new("meta").arg(
+            App::new("ip").arg(
                 Arg::with_name("meta")
-                    .help("获取服务器元数据例如 NETWORK, CPU, MEMORY")
+                    .help("获取服务器元外部 IP")
                     .takes_value(true),
             ),
         )
@@ -39,7 +39,7 @@ fn main() {
         file.sync_all().unwrap();
     };
 
-    if matches.is_present("meta") {
+    if matches.is_present("ip") {
         let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
         let stream =
             TcpStream::connect("www.taobao.com:443").unwrap();
