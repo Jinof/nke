@@ -5,6 +5,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::str;
+use std::process::Command;
 
 fn main() {
     let matches = App::new("NKE")
@@ -25,6 +26,13 @@ fn main() {
                     .takes_value(true),
             ),
         )
+        .subcommand(
+            App::new("dk8s").arg(
+                Arg::with_name("dk8s")
+                    .help("删除 K8s 旧配置")
+                    .takes_value(true),
+            )
+        )   
         .get_matches();
 
     if matches.is_present("welcome") {
@@ -65,4 +73,49 @@ fn main() {
 
         println!("external ip is: {}", ip);
     }
+
+    // 删除 k8s 旧配置时的必要步骤
+    if matches.is_present("dk8s") {
+
+        // sudo rm /etc/cni/net.d -rf && sudo iptables -F && sudo iptables -t nat -F && sudo iptables -t mangle -F && sudo iptables -X && sudo ipvsadm --clear && sudo rm /run/flannel -rf && sudo systemctl restart docker
+        Command::new("sudo")
+        .arg("rm /etc/cni/net.d")
+        .output()
+        .expect("删除 CNI 配置失败");
+
+        Command::new("sudo")
+        .arg("iptables -F")
+        .output()
+        .expect("清空 iptables 规则失败");
+        Command::new("sudo")
+        .arg("iptables -t nat -F")
+        .output()
+        .expect("清空 nat 表规则失败");
+
+        Command::new("sudo")
+        .arg("iptables -t mangle -F")
+        .output()
+        .expect("清空 mangle 规则失败");
+
+        Command::new("sudo")
+        .arg("iptables -X")
+        .output()
+        .expect("清空用户自定义规则失败");
+
+        Command::new("sudo")
+        .arg("ipvsadm --clear")
+        .output()
+        .expect("清空虚拟服务表");
+
+        Command::new("sudo")
+        .arg("rm /run/flannel -rf")
+        .output()
+        .expect("删除 flannel 失败");
+
+        Command::new("sudo")
+        .arg("sudo systemctl restart docker")
+        .output()
+        .expect("重启 docker 失败");
+    };
+
 }
